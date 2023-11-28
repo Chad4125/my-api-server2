@@ -1,35 +1,25 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const { MongoClient } = require('mongodb'); // Import MongoClient
-
 const mongoose = require('mongoose');
 const cors = require('cors');
-
 
 const app = express();
 const port = 9000;
 
 app.use(bodyParser.json());
 app.use(cors());
-// MongoDB Connection
-// mongoose.connect('mongodb://root:Forest256@dds-mj7aafa6d8c7ae041668-pub.mongodb.ap-northeast-2.rds.aliyuncs.com:3717,dds-mj7aafa6d8c7ae042465-pub.mongodb.ap-northeast-2.rds.aliyuncs.com:3717/admin?replicaSet=mgset-12662', {
-//   useNewUrlParser: true,
-//   useUnifiedTopology: true,
-// });
+
 mongoose.connect('mongodb://localhost:27017/mydatabase', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
-// MongoDB Schema
+
 const voteSchema = new mongoose.Schema({
   color: String,
-
 });
 
 const Vote = mongoose.model('Vote', voteSchema);
 
-
-// Prevent Cold Start Latency
 app.get('/ping', async (req, res) => {
   try {
     res.status(200).send('pong');
@@ -39,7 +29,6 @@ app.get('/ping', async (req, res) => {
   }
 });
 
-// Handle Vote Submission
 app.post('/submit-vote', async (req, res) => {
   const { color } = req.body;
 
@@ -53,24 +42,27 @@ app.post('/submit-vote', async (req, res) => {
   }
 });
 
-// Get Current Voting Status
 app.get('/voting-status', async (req, res) => {
   try {
-    const votes = await Vote.find();
-    const status = {
-      totalVotes: votes.length,
-      votesByColor: {},
-    };
+    const status = await Vote.aggregate([
+      {
+        $group: {
+          _id: '$color',
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          color: '$_id',
+          count: 1,
+          _id: 0,
+        },
+      },
+    ]);
 
-    votes.forEach((vote) => {
-      if (status.votesByColor[vote.color]) {
-        status.votesByColor[vote.color]++;
-      } else {
-        status.votesByColor[vote.color] = 1;
-      }
-    });
+    const totalVotes = status.reduce((acc, colorCount) => acc + colorCount.count, 0);
 
-    res.status(200).json(status);
+    res.status(200).json({ totalVotes, votesByColor: status });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Internal Server Error' });
