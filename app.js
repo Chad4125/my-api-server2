@@ -9,7 +9,7 @@ const port = 9000;
 app.use(bodyParser.json());
 app.use(cors());
 
-mongoose.connect('mongodb://8.213.159.230:27017/mydatabase', {
+mongoose.connect('mongodb://172.30.144.128:27017/mydatabase', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
